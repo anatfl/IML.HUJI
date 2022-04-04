@@ -3,6 +3,7 @@ from typing import NoReturn
 from ...base import BaseEstimator
 import numpy as np
 from numpy.linalg import pinv
+from IMLearn.metrics import loss_functions
 
 
 class LinearRegression(BaseEstimator):
@@ -11,6 +12,7 @@ class LinearRegression(BaseEstimator):
 
     Solving Ordinary Least Squares optimization problem
     """
+
 
     def __init__(self, include_intercept: bool = True) -> LinearRegression:
         """
@@ -47,9 +49,19 @@ class LinearRegression(BaseEstimator):
 
         Notes
         -----
-        Fits model with or without an intercept depending on value of `self.include_intercept_`
+        Fits model with or without an intercept depending on value of
+        `self.include_intercept_`
         """
-        raise NotImplementedError()
+        # raise NotImplementedError()
+        if self.include_intercept_:
+            x_len_column = X.shape[0]
+            intercept_column = np.ones(x_len_column, 1)
+            new_x = np.insert(X, 0, intercept_column, axis=1)
+            w_hat = pinv(new_x) * y
+            self.coefs_ = w_hat
+        else:
+            w_hat = pinv(X) * y
+            self.coefs_ = w_hat
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -65,7 +77,17 @@ class LinearRegression(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        raise NotImplementedError()
+        # raise NotImplementedError()
+        if self.include_intercept_:
+            x_len_column = X.shape[0]
+            intercept_column = np.ones(x_len_column, 1)
+            new_x = np.insert(X, 0, intercept_column, axis=1)
+            y_hat = new_x * np.transpose(self.coefs_)
+            return np.transpose(y_hat)
+
+        else:
+            y_hat = X * np.transpose(self.coefs_)
+            return np.transpose(y_hat)
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -84,4 +106,7 @@ class LinearRegression(BaseEstimator):
         loss : float
             Performance under MSE loss function
         """
-        raise NotImplementedError()
+        # raise NotImplementedError()
+        y_prediction = self._predict(X)
+        mse = loss_functions.mean_square_error(y, y_prediction)
+        return mse

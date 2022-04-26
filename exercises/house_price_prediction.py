@@ -25,18 +25,33 @@ def load_data(filename: str):
     DataFrame or a Tuple[DataFrame, Series]
     """
     df = pd.read_csv(filename)
+    # replace all blanks with 0:
     df = df.fillna(0)
-    for feature in ['bedrooms', 'bathrooms', 'sqft_living', 'sqft_living',
-                    'sqft_lot', 'floors', 'price']:
+
+    # features which must br positive:
+    for feature in ['sqft_living', 'sqft_above', 'sqft_lot', 'floors',
+                    'price']:
         df = df[df[feature] > 0]
-    df = df.drop(columns='date')
-    df = pd.get_dummies(data=df, prefix='zipcode', columns=['zipcode'])
+
+    # remove the odds:
+    df = df[df['bedrooms'] < 16]
+    df = df[df["sqft_lot"] < 1120000]
+    df = df[df["sqft_lot15"] < 800000]
+
+    # inserting better new columns:
     df['is_renovated'] = df.apply(lambda row: 1 if row['yr_renovated'] > 0
-                                  else 0, axis=1)
-    df = df.drop(columns='yr_renovated')
-    df['isnt_old'] = df.apply(lambda row: 1 if ((2022 - row['yr_built']) < 30
+    else 0, axis=1)
+
+    df['isnt_old'] = df.apply(lambda row: 1 if ((2022 - row['yr_built']) < 20
                                                 or (row['is_renovated']
                                                     == 1)) else 0, axis=1)
+
+    # remove irrelevant columns to evaluate:
+    df = df.drop(columns=['date', 'lat', 'long', 'yr_renovated'])
+
+    # casting categorical features:
+    df = pd.get_dummies(data=df, prefix='zipcode', columns=['zipcode'])
+
     response_vector = df['price']
     design_mat = df.drop(columns=['price', 'id'])
     return design_mat, response_vector
@@ -60,7 +75,6 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".")\
     output_path: str (default ".")
         Path to folder in which plots are saved
     """
-    # raise NotImplementedError()
     y_std = np.std(y)
     for i in X.columns:
         corr = np.cov(X[i], y)[0][1] / (np.std(X[i]) * y_std)
@@ -71,7 +85,8 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".")\
                                     marker=dict(color="LightSkyBlue"),
                                     showlegend=False)], layout=dict(
                                     title=r"Correlation Between feature {0} "
-                                          r"and Prices is {1}".format(i, corr)))
+                                          r"and Prices is {1}".format(i,
+                                                                      corr)))
         fig.update_xaxes(title=i)
         fig.update_yaxes(title="price")
         pio.write_image(fig=fig, file=output_path + r"\{}.png".format(i))
@@ -86,7 +101,8 @@ if __name__ == '__main__':
     feature_evaluation(design_matrix, y_response, r"..\plots_of_ex2")
 
     # Question 3 - Split samples into training- and testing sets.
-    # raise NotImplementedError()
+    train_samples, train_y, test_samples, test_y = \
+        split_train_test(design_matrix, y_response)
 
     # Question 4 - Fit model over increasing percentages of the overall
     # training data For every percentage p in 10%, 11%, ..., 100%, repeat the
@@ -97,4 +113,40 @@ if __name__ == '__main__':
     #   4) Store average and variance of loss over test set
     # Then plot average loss as function of training size with error ribbon of
     # size (mean-2*std, mean+2*std)
-    # raise NotImplementedError()
+    mean_lst = []
+    var_lst = []
+    for percent in range(10, 101):
+        loss_lst = []
+        for counter in range(10):
+            train_p_samples = train_samples.sample(frac=percent/100)
+            train_p_y = train_y[train_p_samples.index]
+            p_fit = LinearRegression().fit(train_p_samples, train_p_y)
+            p_loss = p_fit.loss(test_samples, test_y)
+            loss_lst.append(p_loss)
+        p_loss_lst = np.array(loss_lst)
+        mean_lst.append(np.mean(p_loss_lst))
+        var_lst.append(np.std(p_loss_lst))
+
+    mean_lst = np.array(mean_lst)
+    var_lst = np.array(var_lst)
+
+    fig = go.Figure([go.Scatter(x=list(range(10, 101)), y=mean_lst,
+                                mode='markers+lines',
+                                name='mean loss'),
+                     go.Scatter(x=list(range(10, 101)),
+                                y=mean_lst-(2 * var_lst),
+                                fill=None, mode="lines",
+                                line=dict(color="lightgrey"),
+                                name='error ribbon'),
+                     go.Scatter(x=list(range(10, 101)),
+                                y=mean_lst + 2 * var_lst,
+                                fill='tonexty', mode="lines",
+                                line=dict(color="lightgrey"),
+                                name='error ribbon')],
+                    layout=go.Layout(title=r"$\text{average loss as "
+                                           r"function of training size }$",
+                                     xaxis=dict(title="x% of train set"),
+                                     yaxis=dict(title="loss of test set"),
+                                     height=500))
+    fig.show()
+

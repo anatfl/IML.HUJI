@@ -35,6 +35,23 @@ class LinearRegression(BaseEstimator):
         super().__init__()
         self.include_intercept_, self.coefs_ = include_intercept, None
 
+    def add_inter_column(self, X: np.ndarray) -> np.ndarray:
+        """
+
+        Parameters
+        ----------
+        X : ndarray of shape (n_samples, n_features)
+            Input data to add first column to avoid intercept
+
+        Returns
+        -------
+        new_X : ndarray of shape (n_samples, n+1_features)
+                Input data with first column of 1's
+        """
+        intercept_column = np.ones((len(X), 1))
+        new_x = np.concatenate((intercept_column, X), axis=1)
+        return new_x
+
     def _fit(self, X: np.ndarray, y: np.ndarray) -> NoReturn:
         """
         Fit Least Squares model to given samples
@@ -52,15 +69,12 @@ class LinearRegression(BaseEstimator):
         Fits model with or without an intercept depending on value of
         `self.include_intercept_`
         """
-        # raise NotImplementedError()
         if self.include_intercept_:
-            x_len_column = X.shape[0]
-            intercept_column = np.ones(x_len_column, 1)
-            new_x = np.insert(X, 0, intercept_column, axis=1)
-            w_hat = pinv(new_x) * y
+            new_x = self.add_inter_column(X)
+            w_hat = pinv(new_x) @ y
             self.coefs_ = w_hat
         else:
-            w_hat = pinv(X) * y
+            w_hat = pinv(X) @ y
             self.coefs_ = w_hat
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
@@ -77,17 +91,14 @@ class LinearRegression(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        # raise NotImplementedError()
         if self.include_intercept_:
-            x_len_column = X.shape[0]
-            intercept_column = np.ones(x_len_column, 1)
-            new_x = np.insert(X, 0, intercept_column, axis=1)
-            y_hat = new_x * np.transpose(self.coefs_)
-            return np.transpose(y_hat)
+            new_x = self.add_inter_column(X)
+            y_hat = new_x @ self.coefs_
+            return y_hat
 
         else:
-            y_hat = X * np.transpose(self.coefs_)
-            return np.transpose(y_hat)
+            y_hat = X @ self.coefs_
+            return y_hat
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -106,7 +117,6 @@ class LinearRegression(BaseEstimator):
         loss : float
             Performance under MSE loss function
         """
-        # raise NotImplementedError()
         y_prediction = self._predict(X)
         mse = loss_functions.mean_square_error(y, y_prediction)
         return mse

@@ -1,9 +1,11 @@
 from typing import Tuple
 import numpy as np
 import pandas as pd
+import math
 
 
-def split_train_test(X: pd.DataFrame, y: pd.Series, train_proportion: float = .75) \
+def split_train_test(X: pd.DataFrame, y: pd.Series,
+                     train_proportion: float = .75) \
         -> Tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
     """
     Randomly split given sample to a training- and testing sample
@@ -20,20 +22,28 @@ def split_train_test(X: pd.DataFrame, y: pd.Series, train_proportion: float = .7
 
     Returns
     -------
-    train_X : DataFrame of shape (ceil(train_proportion * n_samples), n_features)
-        Design matrix of train set
+    train_X : DataFrame of shape (ceil(train_proportion * n_samples),
+    n_features) Design matrix of train set
 
     train_y : Series of shape (ceil(train_proportion * n_samples), )
         Responses of training samples
 
-    test_X : DataFrame of shape (floor((1-train_proportion) * n_samples), n_features)
-        Design matrix of test set
+    test_X : DataFrame of shape (floor((1-train_proportion) * n_samples),
+    n_features) Design matrix of test set
 
     test_y : Series of shape (floor((1-train_proportion) * n_samples), )
         Responses of test samples
 
     """
-    raise NotImplementedError()
+    train_sample_index = np.random.choice(X.index,
+                                          size=math.ceil(train_proportion *
+                                                         X.shape[0]),
+                                          replace=False)
+    train_x = X[X.index.isin(train_sample_index)]
+    train_y = y[y.index.isin(train_sample_index)]
+    test_x = X[~X.index.isin(train_sample_index)]
+    test_y = y[~y.index.isin(train_sample_index)]
+    return train_x, train_y, test_x, test_y
 
 
 def confusion_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -51,7 +61,8 @@ def confusion_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     Returns
     -------
     confusion_matrix: ndarray of shape (a_unique_values, b_unique_values)
-        A confusion matrix where the value of the i,j index shows the number of times value `i` was found in vector `a`
+        A confusion matrix where the value of the i,j index shows the number
+         of times value `i` was found in vector `a`
         while value `j` vas found in vector `b`
     """
-    raise NotImplementedError()
+    # raise NotImplementedError()

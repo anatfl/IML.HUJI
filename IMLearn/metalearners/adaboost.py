@@ -1,6 +1,7 @@
 import numpy as np
-from ...base import BaseEstimator
+from ..base import BaseEstimator
 from typing import Callable, NoReturn
+from IMLearn.metrics.loss_functions import misclassification_error
 
 
 class AdaBoost(BaseEstimator):
@@ -32,6 +33,7 @@ class AdaBoost(BaseEstimator):
             Number of boosting iterations to perform
         """
         super().__init__()
+        self.fitted_ = False
         self.wl_ = wl
         self.iterations_ = iterations
         self.models_, self.weights_, self.D_ = None, None, None
@@ -48,7 +50,26 @@ class AdaBoost(BaseEstimator):
         y : ndarray of shape (n_samples, )
             Responses of input data to fit to
         """
-        raise NotImplementedError()
+        self.weights_ = np.zeros(self.iterations_)
+        n = y.shape[0]
+        self.models_ = [None] * self.iterations_
+        # D(0) - uniform distribution:
+        self.D_ = np.ones(n) / n
+        for t in range(0, self.iterations_):
+            # find base learner and fit:
+            self.models_[t] = self.wl_()
+            self.models_[t].fit(X, self.D_ * y)
+            # predict y hat for evaluating epsilon_t:
+            y_hat = self.models_[t].predict(X)
+            # evaluating epsilon_t (np.abs(y_hat - y) / 2 is 1 for error):
+            epsilon_t = np.sum((np.abs(y_hat - y) / 2) * self.D_)
+            # evaluating Wt by the equation we learned:
+            self.weights_[t] = 0.5 * np.log(1.0 / epsilon_t - 1)
+            # update sample weights:
+            exp_elem = np.exp((-1) * self.weights_[t] * y * y_hat)
+            self.D_ = self.D_ * exp_elem
+            # normalize sample weights:
+            self.D_ = self.D_ / np.sum(self.D_)
 
     def _predict(self, X):
         """
@@ -64,7 +85,15 @@ class AdaBoost(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        raise NotImplementedError()
+        # initializing:
+        y_hat = np.zeros(X.shape[0])
+
+        # evaluating by the equation we learned:
+        for t in range(0, self.iterations_):
+            y_t = self.models_[t].predict(X)
+            y_hat += y_t * self.weights_[t]
+
+        return np.sign(y_hat)
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -83,7 +112,9 @@ class AdaBoost(BaseEstimator):
         loss : float
             Performance under missclassification loss function
         """
-        raise NotImplementedError()
+        y_hat = self._predict(X)
+        mce = misclassification_error(y, y_hat)
+        return mce
 
     def partial_predict(self, X: np.ndarray, T: int) -> np.ndarray:
         """
@@ -102,7 +133,11 @@ class AdaBoost(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        raise NotImplementedError()
+        original_iter = self.iterations_
+        self.iterations_ = T
+        y_hat = self._predict(X)
+        self.iterations_ = original_iter
+        return y_hat
 
     def partial_loss(self, X: np.ndarray, y: np.ndarray, T: int) -> float:
         """
@@ -124,4 +159,8 @@ class AdaBoost(BaseEstimator):
         loss : float
             Performance under missclassification loss function
         """
-        raise NotImplementedError()
+        original_iter = self.iterations_
+        self.iterations_ = T
+        mce = self._loss(X, y)
+        self.iterations_ = original_iter
+        return mce

@@ -45,6 +45,14 @@ def split_train_test(X: pd.DataFrame, y: pd.Series,
     test_y = y[~y.index.isin(train_sample_index)]
     return train_x, train_y, test_x, test_y
 
+    # permut = np.random.permutation(X.shape[0])
+    # X = X.iloc[permut]
+    # y = y.iloc[permut]
+    #
+    # train_last_ind = int(X.shape[0] * train_proportion) + 1
+    # return X[:train_last_ind], y[:train_last_ind], \
+    #        X[train_last_ind:], y[train_last_ind:]
+
 
 def confusion_matrix(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     """
